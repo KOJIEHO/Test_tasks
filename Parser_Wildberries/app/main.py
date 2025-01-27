@@ -1,9 +1,3 @@
-# Здесь можно глубже посмотреть категории:
-# https://www.wildberries.ru/webapi/product/269537211/data?subject=2849&kind=0&brand=1180737
-# Отсюда в теории можно взять цену
-# https://basket-17.wbbasket.ru/vol2695/part269537/269537211/info/price-history.json
-
-
 from aiogram import F, Bot, Dispatcher
 from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
@@ -50,7 +44,11 @@ async def get_price_rating(id):
             async with session.get(PRICE_URL + str(id)) as response:
                 if response.status == 200:
                     data = await response.json()
-                    return data['data']['products'][0]
+
+                    price = data['data']['products'][0]['sizes'][0]['price']['product'] // 100
+                    rating = data['data']['products'][0]['reviewRating']
+                    feedbacks = data['data']['products'][0]['feedbacks']
+                    return price, rating, feedbacks
     except Exception as exception:
         logger.error(f"Ошибка в функции <get_price_rating> для артикула {id}: {exception}")
             
@@ -150,7 +148,7 @@ async def start(message: Message, state: FSMContext):
         await state.set_state(Form.article)
     except Exception as exception:
         logger.error(f"Ошибка при обработке сообщения {message.text}: {exception}")
-        await message.answer("Произошла ошибка. Попробуйте позже.")
+        await message.answer("Произошла ошибка. Попробуйте позже. Возможно еще не наблюдалось ошибок.")
 
 
 @dp.message(F.text, Form.article)
@@ -159,14 +157,11 @@ async def state_change_form(message: Message, state: FSMContext):
         if message.text.isdigit():
             id = message.text
             data, basket_id = await get_data(id)
+            
             if data != False:
                 photo_count = data['media']['photo_count']
                 media_list = await get_media(id, basket_id, photo_count)
-                price_rating = await get_price_rating(id)
-
-                price = price_rating['sizes'][0]['price']['product'] // 100
-                rating = price_rating['reviewRating']
-                feedbacks = price_rating['feedbacks']
+                price, rating, feedbacks = await get_price_rating(id)
                 
                 new_data = [[
                     id,                                              # Артикул             
@@ -203,8 +198,16 @@ async def state_change_form(message: Message, state: FSMContext):
                 for option in data['options']:
                     mes += f"{option['name']}: {option['value']}\n"
 
-                await bot.send_photo(message.chat.id, photo=FSInputFile('tmp.img'), caption=mes)
-                await message.answer(data['description'])
+                await bot.send_photo(message.chat.id, photo=FSInputFile('tmp.img'))
+                if len(mes) < 4000:
+                    await message.answer(mes)
+                else:
+                    await message.answer("Слишком длинный список характеристик. Подробнее можно посмотреть в гугл таблице")
+
+                if len(data['description']) < 4000:
+                    await message.answer(data['description'])
+                else:
+                    await message.answer("Слишком длинное описание. Подробнее можно посмотреть в гугл таблице")
             else:
                 await message.answer("Не удалось найти карточку товара по указанному артикулу")
         else:
