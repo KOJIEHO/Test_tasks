@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Чек</title>
+</head>
+<body>
+    <h1>Чек</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Наименование</th>
+                <th>Цена</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.title }}</td>
+                <td>{{ item.price }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <p>Итоговая сумма: {{ total_amount }}</p>
+    <p>Время создания: {{ timestamp }}</p>
+</body>
+</html>
